@@ -1,28 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload</title>
+    <link rel="stylesheet" href="styles.css">
+    <title>Photo Management</title>
 </head>
+
 <body>
-    
-    <h2>Photo Upload</h2>
+    <div class="container">
+        <h2>Photo Management</h2>
 
-        <input id="fileupload" type="file" name="fileupload" />
-        <button id="upload-button" onclick="uploadFile()">Upload</button>
+        <!-- File Upload Section -->
+        <div class="upload-section">
+            <input id="fileupload" type="file" name="fileupload" />
+            <button id="upload-button" onclick="uploadFile()">Upload</button>
+        </div>
 
-        <script>
-            async function uploadFile() {
-                let formData = new FormData();
-                formData.append("data", fileupload.files[0]);
-                await fetch("http://localhost:8080/photos", {
-                    method: "POST",
-                    body: formData
-                }).then(result =>   result.text())
+        <!-- Search Section -->
+        <div class="search-section">
+            <input id="search-input" type="number" placeholder="Enter Photo ID" />
+            <button id="search-button" onclick="searchPhoto()">Search</button>
+        </div>
+
+        <!-- Photo List Section -->
+        <h3>Photo List</h3>
+        <ul id="photo-list"></ul>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            let formData = new FormData();
+            formData.append("data", fileupload.files[0]);
+            await fetch("http://localhost:8080/photos", {
+                method: "POST",
+                body: formData
+            }).then(result => result.text())
                 .then(text => alert(text));
+
+            // Refresh the photo list after upload
+            fetchPhotoList();
+        }
+
+        async function searchPhoto() {
+            const searchId = document.getElementById("search-input").value;
+
+            if (!searchId) {
+                alert("Please enter a valid ID.");
+                return;
             }
-        </script>
-    
+
+            // Fetch photo data by ID from the server
+            const response = await fetch(`http://localhost:8080/photos/${searchId}`);
+            if (response.status === 404) {
+                alert("Photo not found.");
+                return;
+            }
+
+            const photo = await response.json();
+
+            // Clear previous list items
+            document.getElementById("photo-list").innerHTML = "";
+
+            // Display the searched photo in the list
+            const listItem = document.createElement("li");
+            listItem.textContent = `ID: ${photo.id}, FileName: ${photo.fileName}, Type: ${photo.contentType}`;
+
+            // Add buttons for CRUD operations
+            const deleteButton = document.createElement("button");
+            deleteButton.textContent = "Delete";
+            deleteButton.onclick = () => deletePhoto(photo.id);
+
+            const downloadButton = document.createElement("button");
+            downloadButton.textContent = "Download";
+            downloadButton.onclick = () => downloadPhoto(photo.id);
+
+            listItem.appendChild(deleteButton);
+            listItem.appendChild(downloadButton);
+
+            document.getElementById("photo-list").appendChild(listItem);
+        }
+
+        async function fetchPhotoList() {
+            // Clear previous list items
+            document.getElementById("photo-list").innerHTML = "";
+
+            // Fetch photo data from the server
+            const response = await fetch("http://localhost:8080/photos");
+            const photos = await response.json();
+
+            // Display photos in the list
+            photos.forEach(photo => {
+                const listItem = document.createElement("li");
+                listItem.textContent = `ID: ${photo.id}, FileName: ${photo.fileName}, Type: ${photo.contentType}`;
+
+                // Add buttons for CRUD operations
+                const deleteButton = document.createElement("button");
+                deleteButton.textContent = "Delete";
+                deleteButton.onclick = () => deletePhoto(photo.id);
+
+                const downloadButton = document.createElement("button");
+                downloadButton.textContent = "Download";
+                downloadButton.onclick = () => downloadPhoto(photo.id);
+
+                listItem.appendChild(deleteButton);
+                listItem.appendChild(downloadButton);
+
+                document.getElementById("photo-list").appendChild(listItem);
+            });
+        }
+
+        async function deletePhoto(id) {
+            await fetch(`http://localhost:8080/photos/${id}`, {
+                method: "DELETE"
+            });
+
+            // Refresh the photo list after deletion
+            fetchPhotoList();
+        }
+
+        function downloadPhoto(id) {
+            // Redirect to download endpoint
+            window.location.href = `http://localhost:8080/download/${id}`;
+        }
+
+        // Fetch and display photo list on page load
+        fetchPhotoList();
+    </script>
+
 </body>
+
 </html>
